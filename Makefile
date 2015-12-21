@@ -3,6 +3,8 @@
 NOTEBOOK_IMAGE:=tmpnb-notebook
 VOLMAN_IMAGE:=tmpnb-volman
 SECRETS_VOLUME:=tmpnb-secrets
+MAX_LOG_SIZE:=50m
+MAX_LOG_ROLLOVER:=10
 
 help:
 	@cat README.md
@@ -71,6 +73,9 @@ proxy: PROXY_IMAGE?=jupyter/configurable-http-proxy@sha256:f84940db7ddf324e35f1a
 proxy: check token-check
 	@docker run -d \
 		--name=tmpnb-proxy \
+		--log-driver=json-file \
+		--log-opt max-size=$(MAX_LOG_SIZE) \
+		--log-opt max-file=$(MAX_LOG_ROLLOVER) \
 		-p 80:8000 \
 		-e CONFIGPROXY_AUTH_TOKEN=$(TOKEN) \
 		$(PROXY_IMAGE) \
@@ -80,6 +85,9 @@ secure-proxy: PROXY_IMAGE?=jupyter/configurable-http-proxy@sha256:f84940db7ddf32
 secure-proxy: check token-check
 	@docker run -d \
 		--name=tmpnb-proxy \
+		--log-driver=json-file \
+		--log-opt max-size=$(MAX_LOG_SIZE) \
+		--log-opt max-file=$(MAX_LOG_ROLLOVER) \
 		-p 443:8000 \
 		-e CONFIGPROXY_AUTH_TOKEN=$(TOKEN) \
 		-v $(SECRETS_VOLUME):/etc/letsencrypt \
@@ -96,6 +104,9 @@ pool: BRIDGE_IP=$(shell docker inspect --format='{{.NetworkSettings.Networks.bri
 pool: check token-check
 	@docker run -d \
 		--name=tmpnb-pool \
+		--log-driver=json-file \
+		--log-opt max-size=$(MAX_LOG_SIZE) \
+		--log-opt max-file=$(MAX_LOG_ROLLOVER) \
 		--net=container:tmpnb-proxy \
 		-e CONFIGPROXY_AUTH_TOKEN=$(TOKEN) \
 		-v /var/run/docker.sock:/docker.sock \
@@ -121,6 +132,9 @@ volman: BRIDGE_IP=$(shell docker inspect --format='{{.NetworkSettings.Networks.b
 volman: registration-check check
 	@docker run -d \
 		--name=tmpnb-volman \
+		--log-driver=json-file \
+		--log-opt max-size=$(MAX_LOG_SIZE) \
+		--log-opt max-file=$(MAX_LOG_ROLLOVER) \
 		--pid=host \
 		--privileged \
 		-v /:$(HOSTMOUNT) \
