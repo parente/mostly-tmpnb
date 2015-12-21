@@ -1,0 +1,120 @@
+{% extends "page.html" %}
+
+{% block stylesheet %}
+{{super()}}
+<link rel="stylesheet" href="{{ static_url("auth/css/override.css") }}" type="text/css" />
+<style type="text/css">
+body #ipython-main-app {
+  text-align: inherit;
+}
+
+#ipython-main-app form {
+  margin-top: 1em;
+}
+
+#ipython-main-app .alert {
+  margin-top: 2em;
+}
+</style>
+{% endblock %}
+
+{% block header_buttons %}
+<!--<div class="navbar-brand pull-right">mostly-tmpnb</div>-->
+{% endblock %}
+
+{% block site %}
+
+<div id="ipython-main-app" class="container">
+  <div class="row">
+    <div class="col-xs-4 col-xs-offset-4">
+      <!-- Tabs for login and register -->
+      <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="{{login_state}}"><a href="#login" aria-controls="login" role="tab" data-toggle="tab">Login</a></li>
+        <li role="presentation" class="{{register_state}}"><a href="#register" aria-controls="register" role="tab" data-toggle="tab">Register</a></li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- Login pane -->
+        <div role="tabpanel" class="tab-pane {{login_state}}" id="login">
+          <form action="{{base_url}}login?next={{next}}" method="post">
+            <div class="form-group">
+              <label for="login_username">Username</label>
+              <input type="email" class="form-control" id="login_username" name="username" placeholder="Enter your email address" required>
+            </div>
+            <div class="form-group">
+              <label for="login_password">Password</label>
+              <input type="password" class="form-control" id="login_password" name="password" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn btn-default">Login</button>
+          </form>
+        </div>
+
+        <!-- Register pane -->
+        <div role="tabpanel" class="tab-pane {{register_state}}" id="register">
+          <form action="{{base_url}}login?next={{next}}" method="post">
+            <div class="form-group">
+              <label for="username">Username</label>
+              <input type="email" class="form-control" id="username" name="username" placeholder="Enter your email address" required>
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" class="form-control" id="password" name="password" placeholder="Enter your desired password" required>
+            </div>
+            <div class="form-group">
+              <label for="password_check">Password Again</label>
+              <input type="password" class="form-control" id="password_check" name="password_check" placeholder="Enter your password again" required>
+            </div>
+            <div class="form-group">
+              <label for="registration_key">Registration Code</label>
+              <input type="password" class="form-control" id="registration_key" name="registration_key" placeholder="Enter the registration code for this site" required>
+            </div>
+            <button type="submit" class="btn btn-default">Register</button>
+          </form>
+        </div>
+      </div> <!-- End tab content -->
+
+      <!-- Flash messages from server -->
+      {% if message %}
+        {% for key in message %}
+          <div class="alert alert-danger message-{{key}}">{{message[key]}}</div>
+        {% endfor %}
+      {% endif %}
+
+    </div> <!-- End column -->
+  </div> <!-- End row -->
+{% endblock %}
+
+
+{% block script %}
+{{super()}}
+
+<script type="text/javascript">
+require([
+  "auth/js/main", 
+  "bootstrap"
+], function(auth) {
+  auth.login_main();
+
+  // Make sure passwords match and have a minimum length
+  var password = document.getElementById('password');
+  var password_check = document.getElementById('password_check');
+
+  var validate_password = function() {
+    if(password.value.length < 8) {
+      password.setCustomValidity('Password must be at least 8 characters');
+    } else {
+      password.setCustomValidity('');
+    }
+    if(password.value !== password_check.value) {
+      password_check.setCustomValidity('Passwords do not match');
+    } else {
+      password_check.setCustomValidity('');
+    }
+  };
+
+  password.onchange = validate_password;
+  password_check.onchange = validate_password;
+});
+</script>
+
+{% endblock %}
