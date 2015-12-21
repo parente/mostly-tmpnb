@@ -88,7 +88,6 @@ secure-proxy: check token-check
 			--ssl-key /etc/letsencrypt/privkey.pem \
 			--ssl-cert /etc/letsencrypt/fullchain.pem
 
-# TODO: what about ICC? or is auth enough?
 pool: TMPNB_IMAGE?=jupyter/tmpnb@sha256:9ae47b0b7f20c3b13921c43c1f2ad41b09e4d88811f98a68b72f60c6bb612ba8
 pool: POOL_SIZE?=4
 pool: MEMORY_LIMIT?=512m
@@ -96,7 +95,7 @@ pool: NOTEBOOK_IMAGE?=$(IMAGE)
 pool: BRIDGE_IP=$(shell docker inspect --format='{{.NetworkSettings.Networks.bridge.Gateway}}' tmpnb-proxy)
 pool: check token-check
 	@docker run -d \
-		--name=tmpnb \
+		--name=tmpnb-pool \
 		--net=container:tmpnb-proxy \
 		-e CONFIGPROXY_AUTH_TOKEN=$(TOKEN) \
 		-v /var/run/docker.sock:/docker.sock \
@@ -139,7 +138,7 @@ tmpnb: secure-proxy volman pool
 nuke: check
 	@-docker rm -f tmpnb-proxy 2> /dev/null
 	@-docker rm -f tmpnb-volman 2> /dev/null
-	@-docker rm -f tmpnb 2> /dev/null
+	@-docker rm -f tmpnb-pool 2> /dev/null
 	@-docker rm -f $$(docker ps -a | grep 'tmp.' | awk '{print $$1}') 2> /dev/null
 
 ###### dev targets
