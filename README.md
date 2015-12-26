@@ -22,7 +22,7 @@ Mostly tmpnb is useful for meetups and short-courses during which:
 # create a docker host
 make virtualbox-vm NAME=tmpnb-dev
 # point docker machine to it
-eval $(docker-machine env class)
+eval $(docker-machine env tmpnb-dev)
 # build the notebook and volume manager images
 make images
 # start a dev solution with a hardcoded token and "test" as a registration key
