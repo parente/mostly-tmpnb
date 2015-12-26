@@ -10,10 +10,25 @@ from tornado.log import app_log
 HERE = os.path.abspath(os.path.dirname(__file__))
 STREAM = process.Subprocess.STREAM
 
+@gen.coroutine
+def run_with_streams(*args, **kwargs):
+    '''
+    Runs a subprocess as a coroutine. Returns its exit code, its stdout string, 
+    and its stderr string. args is passed whoesale as the first parameter value 
+    to tornado.process.Subprocess. kwargs are expanded as keyword parameters 
+    values to tornado.process.Subprocess.
+    '''
+    proc = process.Subprocess(args, stdout=STREAM, stderr=STREAM, **kwargs)
+    stdout, stderr = yield [
+        gen.Task(proc.stdout.read_until_close),
+        gen.Task(proc.stderr.read_until_close)
+    ]
+    exit_code = yield proc.wait_for_exit(raise_error=False)
+    raise gen.Return((exit_code, stdout, stderr))
+
 def tmpnb_id_to_container_id(tmpnb_id):
     '''Converts a tmpnb ID to a docker container ID.'''
     return options.options.pool_prefix + tmpnb_id
-    # return os.getenv('POOL_PREFIX', 'tmp.')+tmpnb_id
 
 def username_to_volume_prefix(username):
     '''Hashes a username as an identifiable volume prefix.'''
@@ -37,9 +52,8 @@ def owns_volume(volume_id, password):
 def create_volume(prefix, suffix):
     '''Creates a new volume.'''
     volume_id = '%s.%s' % (prefix, suffix)
-    proc = process.Subprocess(['docker', 'volume', 'create', '--name', volume_id])
-    ret = yield proc.wait_for_exit(raise_error=False)
-    raise gen.Return(ret == 0)
+    exit_code, _, _ = yield run_with_streams('docker', 'volume', 'create', '--name', volume_id)
+    raise gen.Return(exit_code == 0)
 
 @gen.coroutine
 def mount_volume(volume_id, tmpnb_id):
@@ -48,43 +62,31 @@ def mount_volume(volume_id, tmpnb_id):
         'VOLUME' : volume_id,
         'CONTAINER': tmpnb_id_to_container_id(tmpnb_id),
         'HOSTMOUNT': options.options.host_mount
-        # 'HOSTMOUNT': os.getenv('HOSTMOUNT', '')
     }
-    proc = process.Subprocess(['./attach_work.sh'], cwd=HERE, env=env)
-    ret = yield proc.wait_for_exit(raise_error=False)
-    raise gen.Return(ret == 0)
+    exit_code, _, _ = yield run_with_streams('./attach_work.sh', cwd=HERE, env=env)
+    raise gen.Return(exit_code == 0)
 
 @gen.coroutine
 def unmount_volume(volume_id, tmpnb_id):
     '''Unmounts a volume from the tmpnb container.'''
     container_id = tmpnb_id_to_container_id(tmpnb_id)
-    proc = process.Subprocess(['docker-enter', container_id, 'umount', '/home/jovyan/work'])
-    ret = yield proc.wait_for_exit(raise_error=False)
-    raise gen.Return(ret == 0)    
+    exit_code, _, _ = yield run_with_streams('docker-enter', container_id, 'umount', '/home/jovyan/work')
+    raise gen.Return(exit_code == 0)    
 
 @gen.coroutine
 def find_volume(prefix):
     '''Gets the volume ID given its prefix, if it exists.'''
-    proc = process.Subprocess(['docker', 'volume', 'ls'], 
-        stdout=STREAM, stderr=STREAM)
-    result, error = yield [
-        gen.Task(proc.stdout.read_until_close),
-        gen.Task(proc.stderr.read_until_close)
-    ]
-    ret = yield proc.wait_for_exit(raise_error=False)
-    if ret != 0:
-        raise web.HTTPError(500, error)
-    # app_log.info('RESULT=%s', result)
+    exit_code, stdout, stderr = yield run_with_streams('docker', 'volume', 'ls')
+    if exit_code != 0:
+        raise web.HTTPError(500, stderr)
     # Find the prefix
-    start = result.find(prefix)
-    # app_log.info('START=%d', start)
+    start = stdout.find(prefix)
     if start == -1:
         result = None
     else:
         # Find the end of the volume ID 
-        end = result.find('\n', start)
-        # app_log.info('END=%d', end)
-        result = result[start:end]
+        end = stdout.find('\n', start)
+        result = stdout[start:end]
     raise gen.Return(result)
 
 @gen.coroutine
@@ -92,9 +94,8 @@ def has_mount(tmpnb_id, mount_point):
     '''Gets if the container already has a volume mounted.'''
     container_id = tmpnb_id_to_container_id(tmpnb_id)
     cmd = 'cat /proc/mounts | grep %s' % mount_point
-    proc = process.Subprocess(['docker', 'exec', container_id, 'sh', '-c', cmd])
-    ret = yield proc.wait_for_exit(raise_error=False)
-    raise gen.Return(ret == 0)
+    exit_code, _, _ = yield run_with_streams('docker', 'exec', container_id, 'sh', '-c', cmd)
+    raise gen.Return(exit_code == 0)
 
 class VolumesHander(web.RequestHandler):
     '''
@@ -113,7 +114,6 @@ class VolumesHander(web.RequestHandler):
         username = body['username']
         password = body['password']
 
-        # required_key = os.getenv('REGISTRATION_KEY')
         required_key = options.options.registration_key
         if not required_key or required_key == registration_key:
             # Hash the username as the volume prefix
@@ -128,7 +128,9 @@ class VolumesHander(web.RequestHandler):
                 # Error if volume creation failed
                 raise web.HTTPError(500, 'unable to create volume') 
         else:
-            raise web.HTTPError(401, 'invalid registration key')
+            raise web.HTTPError(401, 'invalid registration key %s', registration_key)
+
+        app_log.info('created volume prefix %s', volume_prefix)
 
         # All good if we get here
         self.set_status(201)
@@ -159,17 +161,19 @@ class MountsHandler(web.RequestHandler):
         volume_id = yield find_volume(prefix)
         if not volume_id:
             # Error if the container does not exist
-            raise web.HTTPError(401, 'volume %s does not exist' % volume_id)
+            raise web.HTTPError(401, 'volume prefix %s does not exist' % prefix)
 
         # Check if the user owns the volume
         if not owns_volume(volume_id, password):
             # Error if the password hash is not the suffix of the volume
-            raise web.HTTPError(401, 'wrong password for volume %s' % volume_id)            
+            raise web.HTTPError(401, 'wrong password for volume prefix %s' % prefix)
 
         mounted = yield mount_volume(volume_id, tmpnb_id)
         if not mounted:
             # Error if the container does not mount
-            raise web.HTTPError(500, 'unable to mount volume %s on %s' % (volume_id, tmpnb_id))
+            raise web.HTTPError(500, 'unable to mount volume prefix %s on %s' % (prefix, tmpnb_id))
+
+        app_log.info('mounted volume prefix %s on %s', prefix, tmpnb_id)
 
         # All good if we get here
         mount_id = '%s.%s' % (volume_id, tmpnb_id)
@@ -203,7 +207,7 @@ def main():
     ]
 
     api_app = web.Application(api_handlers)
-    api_app.listen(opts.port, opts.ip)
+    api_app.listen(opts.port, opts.ip, xheaders=True)
     app_log.info("Listening on {}:{}".format(opts.ip, opts.port))
 
     ioloop.IOLoop.instance().start()

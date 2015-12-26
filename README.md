@@ -69,11 +69,11 @@ make tmpnb TOKEN="$(openssl rand -base64 32)" \
 ## TODOs
 
 * Enable nbexamples from host
-* Consistent log message formats
-* More log messages
+* Consistent log message formats across services
 * Routing to a central log aggregator via docker logging driver
 * Make target for rsync backup strategy
 * Make target for migrating user data from volumes with lost passwords
 * Make target to remove old idle containers from the pool after a new build, but not those in use
 * Instructions for scheduling renewal of cert
 * Better password rules (numbers+letters+punc)
+* Redirect to a tmpnb page after logout, not a new container
