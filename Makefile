@@ -29,6 +29,9 @@ registration-check:
 notebook-image: DOCKER_ARGS?=
 notebook-image: check
 	@cd notebook && docker build --rm $(DOCKER_ARGS) -t $(NOTEBOOK_IMAGE) .
+# Drain old idle containers after a successful notebook image build if the pool 
+# is already running.
+	@-cat admin/drain.py | docker exec -i tmpnb-pool python
 
 volman-image: DOCKER_ARGS?=
 volman-image: check
@@ -96,7 +99,7 @@ secure-proxy: check token-check
 			--ssl-key /etc/letsencrypt/privkey.pem \
 			--ssl-cert /etc/letsencrypt/fullchain.pem
 
-pool: TMPNB_IMAGE?=jupyter/tmpnb@sha256:9ae47b0b7f20c3b13921c43c1f2ad41b09e4d88811f98a68b72f60c6bb612ba8
+pool: TMPNB_IMAGE?=jupyter/tmpnb@sha256:c84dd98caffd499b40a147d5f2a2d1b9f498d6ee1b3bc5d6816f9a466ed718fc
 pool: POOL_SIZE?=4
 pool: MEMORY_LIMIT?=512m
 pool: NOTEBOOK_IMAGE?=$(IMAGE)
@@ -117,6 +120,7 @@ pool: check token-check
 			--pool_name=tmpnb \
 			--cull_period=30 \
 			--cull_timeout=600 \
+			--max_dock_workers=4 \
 			--mem_limit=$(MEMORY_LIMIT) \
 			--command='start-notebook.sh \
 			"--NotebookApp.base_url={base_path} \
