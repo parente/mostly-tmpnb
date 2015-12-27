@@ -29,8 +29,9 @@ registration-check:
 notebook-image: DOCKER_ARGS?=
 notebook-image: check
 	@cd notebook && docker build --rm $(DOCKER_ARGS) -t $(NOTEBOOK_IMAGE) .
-# Drain old idle containers after a successful notebook image build
-	@cat admin/drain.py | docker exec -i tmpnb-pool python
+# Drain old idle containers after a successful notebook image build if the pool 
+# is already running.
+	@-cat admin/drain.py | docker exec -i tmpnb-pool python
 
 volman-image: DOCKER_ARGS?=
 volman-image: check
