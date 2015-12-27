@@ -7,6 +7,11 @@ COPY auth/by_volume.py \
 COPY templates/login_register.html \
     /opt/conda/lib/python3.4/site-packages/notebook/templates
 
-#RUN pip install git+https://github.com/danielballan/nbexamples.git#egg=nbexamples
+RUN conda install -y matplotlib==1.5.0 \
+    numpy==1.10.2 \
+    pandas==0.17.1 \
+    scipy==0.16.1 \
+    seaborn==0.6.0
+# RUN pip install git+https://github.com/danielballan/nbexamples.git#egg=nbexamples
 
 USER root
