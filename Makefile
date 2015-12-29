@@ -99,7 +99,7 @@ secure-proxy: check token-check
 			--ssl-key /etc/letsencrypt/privkey.pem \
 			--ssl-cert /etc/letsencrypt/fullchain.pem
 
-pool: TMPNB_IMAGE?=jupyter/tmpnb@sha256:c84dd98caffd499b40a147d5f2a2d1b9f498d6ee1b3bc5d6816f9a466ed718fc
+pool: TMPNB_IMAGE?=jupyter/tmpnb:latest@sha256:54c39158eb83085bc6f445772b70d975f8b747af4159474f5407cfa2e0f390c7
 pool: POOL_SIZE?=4
 pool: MEMORY_LIMIT?=512m
 pool: NOTEBOOK_IMAGE?=$(IMAGE)
@@ -120,7 +120,7 @@ pool: check token-check
 			--pool_name=tmpnb \
 			--cull_period=30 \
 			--cull_timeout=600 \
-			--max_dock_workers=4 \
+			--max_dock_workers=16 \
 			--mem_limit=$(MEMORY_LIMIT) \
 			--command='start-notebook.sh \
 			"--NotebookApp.base_url={base_path} \
