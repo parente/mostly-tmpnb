@@ -99,7 +99,7 @@ secure-proxy: check token-check
 			--ssl-key /etc/letsencrypt/privkey.pem \
 			--ssl-cert /etc/letsencrypt/fullchain.pem
 
-pool: TMPNB_IMAGE?=jupyter/tmpnb:latest@sha256:54c39158eb83085bc6f445772b70d975f8b747af4159474f5407cfa2e0f390c7
+pool: TMPNB_IMAGE?=jupyter/tmpnb@sha256:54c39158eb83085bc6f445772b70d975f8b747af4159474f5407cfa2e0f390c7
 pool: POOL_SIZE?=4
 pool: MEMORY_LIMIT?=512m
 pool: NOTEBOOK_IMAGE?=$(IMAGE)
