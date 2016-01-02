@@ -50,7 +50,13 @@ make secrets FQDN=myclass.mydomain EMAIL=myname@myemail.com
 make tmpnb TOKEN="$(openssl rand -base64 32)" \
     REGISTRATION_KEY="secret" \
     POOL_SIZE=50 \
-    MEMORY_LIMIT=512m 
+    MEMORY_LIMIT=512m
+# on ubuntu host, setup anacron to renew certificate monthly
+cat <<EOF >/etc/cron.monthly/reissue
+#!/bin/bash
+make -C /path/to/mostly-tmpnb FQDN=myclass.mydomain EMAIL=myname@myemail.com
+EOF
+chmod +x /path/to/mostly-tmpnb/reissue
 ```
 
 ## How does it work?
@@ -73,6 +79,5 @@ make tmpnb TOKEN="$(openssl rand -base64 32)" \
 * Routing to a central log aggregator via docker logging driver
 * Make target for rsync backup strategy
 * Make target for migrating user data from volumes with lost passwords
-* Instructions for scheduling renewal of cert
 * Better password rules (numbers+letters+punc)
 * Redirect to a tmpnb page after logout, not a new container

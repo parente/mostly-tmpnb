@@ -47,16 +47,14 @@ secrets:
 	@test -n "$(EMAIL)" || \
 		(echo "ERROR: EMAIL not defined or blank"; exit 1)
 	@docker volume create --name $(SECRETS_VOLUME) > /dev/null
-# Specifying an alternative cert path doesn't work with the --duplicate
-# setting which we want to use for renewal.
 	@docker run -it --rm -p 80:80 \
 		-v $(SECRETS_VOLUME):/etc/letsencrypt \
 		quay.io/letsencrypt/letsencrypt:latest \
 		certonly \
+		--keep-until-expiring \
 		--standalone \
 		--standalone-supported-challenges http-01 \
 		--agree-tos \
-		--duplicate \
 		--domain '$(FQDN)' \
 		--email '$(EMAIL)'
 # The lets encrypt image has an entrypoint so we use the notebook image
@@ -64,7 +62,7 @@ secrets:
 # Here we need to set the permissions so nobody in the proxy container can read
 # the cert and key. Plus we want to symlink the certs into the root of the 
 # /etc/letsencrypt directory so that the FQDN doesn't have to be known later.
-	@docker run -it --rm \
+	@-docker run -it --rm \
 		-v $(SECRETS_VOLUME):/etc/letsencrypt \
 		$(NOTEBOOK_IMAGE) \
 		bash -c "ln -s /etc/letsencrypt/live/$(FQDN)/* /etc/letsencrypt/ && \
